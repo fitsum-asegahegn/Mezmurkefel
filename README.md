@@ -96,3 +96,30 @@ above), `db.js` (shared, unchanged), `plan-seed.js` (this department's
 Supabase layer + sign-in gate), `app.js` (all module logic),
 `manifest.json` + `sw.js` (bump the `CACHE` version string on every
 redeploy), `supabase-schema.sql`, `icon-192.png` / `icon-512.png`.
+
+
+## Local reminders
+Settings → 🔔 Local reminders lets a device opt in to a once-a-day
+on-device notification summarizing anything that needs attention
+(follow-ups needed, items/inventory needing attention, upcoming
+programs/events, plan items coming due) — plus a "Check now" button to
+check immediately rather than waiting. This uses the browser's
+Notification API directly; it is **not** server push. There's no
+backend to wake the app when it's closed, so this only fires while the
+app is open on that device (same limitation as the HR app's version of
+this feature, and for the same reason: no server, zero-cost static
+site).
+
+
+## Offline-only is a deploy-time choice, not a sign-in bypass
+"Skip — offline only" no longer appears on the sign-in screen. Someone
+without an account can no longer tap past sign-in to get in — offline
+mode has no role restriction (admin-equivalent access, by design, since
+there's no shared team to check against when nobody's signed in), so
+letting anyone skip would have meant anyone without an account could get
+full access. A person who **has** signed up still gets offline access
+automatically the next time they open the app without a connection —
+their session is remembered on that device, no button needed. True
+"nobody needs an account" offline mode is still available, but only as
+a deploy-time choice: leave `config.js` blank and the app never shows a
+sign-in screen at all.

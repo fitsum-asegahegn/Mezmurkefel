@@ -1,6 +1,6 @@
 /* sw.js — bump CACHE whenever you redeploy changed files so phones pick
  * up the update (old cache is dropped in activate). */
-const CACHE = 'zemana-sinetibebat-v1';
+const CACHE = 'zemana-sinetibebat-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const ASSETS = [
   './db.js',
   './plan-seed.js',
   './auth.js',
+  './reminders.js',
   './app.js',
   './ethiopian-calendar.js',
   './manifest.json',

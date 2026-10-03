@@ -115,6 +115,13 @@
 
   // Shared email/password sign-in+sign-up block, used by both the
   // full-screen gate and the Settings panel's not-signed-in state.
+  // showSkip is always passed as false now: "offline only" is reachable
+  // only by leaving config.js blank at deploy time, not as a runtime
+  // bypass — otherwise anyone without an account could skip past sign-in
+  // entirely and land with admin-equivalent access (offline mode has no
+  // role restriction, by design, since there's no shared team to check
+  // against). A person who already signed up still gets offline access
+  // automatically next time, via their persisted session — no skip needed.
   function buildCredentialsForm(el, { showSkip }) {
     const wrap = el('div', {});
     const emailInput = el('input', { type: 'email', placeholder: t('email'), autocomplete: 'email' });
@@ -154,7 +161,7 @@
       el('h1', {}, [t('app_title')]),
       el('p', { class: 'muted', style: 'margin-bottom:16px' }, [t('settings_sign_in') + ' / ' + t('settings_sign_up')]),
     ]);
-    card.appendChild(buildCredentialsForm(el, { showSkip: true }));
+    card.appendChild(buildCredentialsForm(el, { showSkip: false }));
     screen.appendChild(card);
     return screen;
   }
@@ -196,7 +203,7 @@
 
     // Not signed in and not offline-only shouldn't normally be reachable here
     // (the gate catches it first), but handled for completeness.
-    wrap.appendChild(buildCredentialsForm(el, { showSkip: true }));
+    wrap.appendChild(buildCredentialsForm(el, { showSkip: false }));
     return wrap;
   }
 
