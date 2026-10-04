@@ -62,6 +62,12 @@
     call_reason: { am: 'ምክንያት', en: 'Reason' },
     called_by: { am: 'የተከታተለው', en: 'Followed up by' },
     no_absentees: { am: 'ክትትል የሚያስፈልገው የለም 🎉', en: 'No one needs follow-up 🎉' },
+    attendance_type_study: { am: 'ጥናት ክትትል', en: 'Hymn study' },
+    attendance_type_meeting: { am: 'ክፍል ስብሰባ', en: 'Department meeting' },
+    history_title: { am: '📋 ታሪክ', en: '📋 History' },
+    history_present: { am: 'የተገኙ', en: 'Present' },
+    history_absent: { am: 'ያልተገኙ', en: 'Absent' },
+    history_no_dates: { am: 'ገና ምንም አቴንዳስ አልተመዘገበም', en: 'No attendance recorded yet' },
 
     // Inventory
     item_name: { am: 'የቁስ ስም', en: 'Item name' },

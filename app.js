@@ -361,9 +361,12 @@
   }
 
   // ---------- attendance + member follow-up ----------
-  async function getDistinctAttendanceDates() {
+  // type: 'study' = ጥናት ክትትል (hymn study, item 13); 'meeting' = ክፍል ስብሰባ
+  // (department meeting, item 18). Older records with no type stored are
+  // treated as 'study', so nothing already saved changes meaning.
+  async function getDistinctAttendanceDates(type = 'study') {
     const records = await window.NKDB.getAll('attendance');
-    return Array.from(new Set(records.map((r) => r.date))).sort().reverse();
+    return Array.from(new Set(records.filter((r) => (r.type || 'study') === type).map((r) => r.date))).sort().reverse();
   }
 
   async function computeConsecutiveAbsences(memberId, dates, attendanceByKey) {
@@ -381,6 +384,10 @@
     const wrap = el('div', { class: 'panel' });
     wrap.appendChild(el('div', { class: 'panel-header' }, [el('h2', {}, [t('nav_attendance')])]));
 
+    let type = 'study';
+    const typeBar = el('div', { class: 'subtabs' });
+    wrap.appendChild(typeBar);
+
     const dateInput = el('input', { type: 'date', value: todayIso() });
     wrap.appendChild(el('div', { class: 'form-row' }, [el('label', {}, [t('pick_date')]), dateInput]));
 
@@ -391,7 +398,21 @@
 
     const followUpHost = el('div', { style: 'margin-top:22px' });
     wrap.appendChild(followUpHost);
+
+    const historyHost = el('div', { style: 'margin-top:22px' });
+    wrap.appendChild(historyHost);
+
     app.appendChild(wrap);
+
+    function renderTypeBar() {
+      typeBar.innerHTML = '';
+      [['study', 'attendance_type_study'], ['meeting', 'attendance_type_meeting']].forEach(([val, labelKey]) => {
+        typeBar.appendChild(el('button', {
+          class: 'subtab-btn' + (type === val ? ' active' : ''),
+          onclick: async () => { type = val; renderTypeBar(); await refreshAll(); },
+        }, [t(labelKey)]));
+      });
+    }
 
     let checks = {};
 
@@ -401,7 +422,7 @@
       const dateVal = dateInput.value || todayIso();
       const attendance = await window.NKDB.getAll('attendance');
       const existingForDate = {};
-      attendance.filter((r) => r.date === dateVal).forEach((r) => { existingForDate[r.memberId] = r; });
+      attendance.filter((r) => r.date === dateVal && (r.type || 'study') === type).forEach((r) => { existingForDate[r.memberId] = r; });
       checks = {};
       members.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       if (!members.length) {
@@ -423,15 +444,14 @@
     }
 
     dateInput.addEventListener('change', renderChecklist);
-    await renderChecklist();
 
     saveBtn.addEventListener('click', async () => {
       const dateVal = dateInput.value || todayIso();
       const attendance = await window.NKDB.getAll('attendance');
       const members = await window.NKDB.getAll('members');
       for (const [memberId, present] of Object.entries(checks)) {
-        const existing = attendance.find((r) => r.memberId === memberId && r.date === dateVal);
-        await window.NKDB.put('attendance', existing ? { ...existing, present } : { memberId, date: dateVal, present });
+        const existing = attendance.find((r) => r.memberId === memberId && r.date === dateVal && (r.type || 'study') === type);
+        await window.NKDB.put('attendance', existing ? { ...existing, present, type } : { memberId, date: dateVal, present, type });
         if (present) {
           const member = members.find((m) => m.id === memberId);
           if (member && member.followedUpAt) {
@@ -440,6 +460,7 @@
         }
       }
       await renderFollowUp();
+      await renderHistory();
       alert(t('save_attendance') + ' ✓');
     });
 
@@ -448,9 +469,9 @@
       followUpHost.appendChild(el('h3', {}, [t('needs_followup')]));
       const members = (await window.NKDB.getAll('members')).filter((m) => m.status !== 'inactive');
       const attendance = await window.NKDB.getAll('attendance');
-      const dates = await getDistinctAttendanceDates();
+      const dates = await getDistinctAttendanceDates(type);
       const attendanceByKey = {};
-      attendance.forEach((r) => { attendanceByKey[r.memberId + '|' + r.date] = r; });
+      attendance.filter((r) => (r.type || 'study') === type).forEach((r) => { attendanceByKey[r.memberId + '|' + r.date] = r; });
 
       const flagged = [];
       for (const m of members) {
@@ -463,6 +484,51 @@
       }
       flagged.sort((a, b) => b.count - a.count);
       flagged.forEach(({ member, count }) => followUpHost.appendChild(renderFollowUpCard(member, count)));
+    }
+
+    // "so he knows on which day who was absent and present" — a per-date
+    // drill-down over everything saved for the currently selected type.
+    async function renderHistory() {
+      historyHost.innerHTML = '';
+      historyHost.appendChild(el('h3', {}, [t('history_title')]));
+      const [members, attendance] = await Promise.all([
+        window.NKDB.getAll('members'), window.NKDB.getAll('attendance'),
+      ]);
+      const memberById = {};
+      members.forEach((m) => { memberById[m.id] = m; });
+      const dates = await getDistinctAttendanceDates(type);
+      if (!dates.length) {
+        historyHost.appendChild(el('p', { class: 'empty' }, [t('history_no_dates')]));
+        return;
+      }
+      dates.forEach((d) => {
+        const recordsForDate = attendance.filter((r) => r.date === d && (r.type || 'study') === type);
+        const presentList = recordsForDate.filter((r) => r.present).map((r) => memberById[r.memberId]).filter(Boolean);
+        const absentList = recordsForDate.filter((r) => !r.present).map((r) => memberById[r.memberId]).filter(Boolean);
+        presentList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        absentList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        const details = el('details', { class: 'plan-history history-date' });
+        details.appendChild(el('summary', {}, [
+          `${fmtDate(d)} — ✅ ${presentList.length}  ❌ ${absentList.length}`,
+        ]));
+        const body = el('div', { style: 'margin-top:8px' });
+        if (presentList.length) {
+          body.appendChild(el('div', { class: 'history-sub-label good-text' }, [`✅ ${t('history_present')}`]));
+          body.appendChild(el('div', { class: 'history-name-list' }, [presentList.map((m) => m.name).join('፣ ')]));
+        }
+        if (absentList.length) {
+          body.appendChild(el('div', { class: 'history-sub-label danger-text', style: 'margin-top:6px' }, [`❌ ${t('history_absent')}`]));
+          body.appendChild(el('div', { class: 'history-name-list' }, [absentList.map((m) => m.name).join('፣ ')]));
+        }
+        details.appendChild(body);
+        historyHost.appendChild(details);
+      });
+    }
+
+    async function refreshAll() {
+      await renderChecklist();
+      await renderFollowUp();
+      await renderHistory();
     }
 
     function renderFollowUpCard(member, count) {
@@ -516,7 +582,8 @@
       renderFollowUp();
     }
 
-    await renderFollowUp();
+    renderTypeBar();
+    await refreshAll();
   }
 
   // ---------- dashboard ----------
@@ -534,9 +601,10 @@
       window.NKDB.getAll('inventory'), window.NKDB.getAll('programs'), window.NKDB.getAll('planItems'),
     ]);
     const activeMembers = members.filter((m) => m.status !== 'inactive');
-    const dates = Array.from(new Set(attendance.map((r) => r.date))).sort().reverse();
+    const studyAttendance = attendance.filter((r) => (r.type || 'study') === 'study');
+    const dates = Array.from(new Set(studyAttendance.map((r) => r.date))).sort().reverse();
     const attendanceByKey = {};
-    attendance.forEach((r) => { attendanceByKey[r.memberId + '|' + r.date] = r; });
+    studyAttendance.forEach((r) => { attendanceByKey[r.memberId + '|' + r.date] = r; });
     let flaggedCount = 0;
     for (const m of activeMembers) {
       const count = await computeConsecutiveAbsences(m.id, dates.slice(0, 8), attendanceByKey);
@@ -761,7 +829,8 @@
     cutoff.setMonth(cutoff.getMonth() - months);
     const inRange = (d) => d && new Date(d) >= cutoff;
     const activeMembers = members.filter((m) => m.status !== 'inactive');
-    const periodAttendance = attendance.filter((r) => inRange(r.date));
+    const studyAttendance = attendance.filter((r) => (r.type || 'study') === 'study');
+    const periodAttendance = studyAttendance.filter((r) => inRange(r.date));
     const presentCount = periodAttendance.filter((r) => r.present).length;
     const attendanceRate = periodAttendance.length ? Math.round((presentCount / periodAttendance.length) * 100) : 0;
     const periodPrograms = programs.filter((p) => inRange(p.date));
@@ -769,9 +838,9 @@
     const contribTotal = periodContrib.reduce((s, r) => s + (Number(r.paid) || 0), 0);
     const needsAttention = inventory.filter((i) => i.status === 'damaged' || i.status === 'washing').length;
 
-    const dates = Array.from(new Set(attendance.map((r) => r.date))).sort().reverse();
+    const dates = Array.from(new Set(studyAttendance.map((r) => r.date))).sort().reverse();
     const attendanceByKey = {};
-    attendance.forEach((r) => { attendanceByKey[r.memberId + '|' + r.date] = r; });
+    studyAttendance.forEach((r) => { attendanceByKey[r.memberId + '|' + r.date] = r; });
     let flaggedCount = 0;
     for (const m of activeMembers) {
       let count = 0;
@@ -834,11 +903,11 @@
   }
 
   const PPTX_FONT = 'Nyala';
-  const INDIGO = '3B3260';
-  const GOLD = 'C9A24B';
-  const PARCH = 'F4F1E8';
-  const SAGE = '7C9473';
-  const DANGER = 'B5563C';
+  const INDIGO = '0B0B0D'; // kept as the var name for minimal diff; now true black
+  const GOLD = 'D4AF6A';
+  const PARCH = 'F2EEE4';
+  const SAGE = '6FBF9B';
+  const DANGER = 'E0695A';
 
   async function generatePptxReport(months) {
     if (typeof PptxGenJS === 'undefined') {
@@ -858,7 +927,7 @@
     slide.background = { color: INDIGO };
     slide.addText(t('app_title'), { x: 0.5, y: 1.7, w: 9, h: 1, fontFace: PPTX_FONT, fontSize: 30, bold: true, color: GOLD, align: 'center' });
     slide.addText(`${t('generate_report')} — ${monthsLabel}`, { x: 0.5, y: 2.6, w: 9, h: 0.6, fontFace: PPTX_FONT, fontSize: 18, color: PARCH, align: 'center' });
-    slide.addText(todayStr, { x: 0.5, y: 3.2, w: 9, h: 0.5, fontFace: PPTX_FONT, fontSize: 12, color: 'B8AED9', align: 'center' });
+    slide.addText(todayStr, { x: 0.5, y: 3.2, w: 9, h: 0.5, fontFace: PPTX_FONT, fontSize: 12, color: 'A49CB0', align: 'center' });
 
     slide = pptx.addSlide();
     slide.background = { color: INDIGO };
@@ -874,7 +943,7 @@
       dataLabelColor: PARCH, dataLabelFontFace: PPTX_FONT, dataLabelFontSize: 11,
       catAxisLabelColor: PARCH, catAxisLabelFontFace: PPTX_FONT, catAxisLabelFontSize: 12,
       valAxisHidden: true,
-      catAxisLineColor: '564A8A', valGridLine: { color: '4A3F73' },
+      catAxisLineColor: '2B2B31', valGridLine: { color: '222227' },
       plotArea: { fill: { color: INDIGO } }, chartArea: { fill: { color: INDIGO } },
     });
     slide.addText(`${t('total_collected')}: ${fmtMoney(d.contribTotal)}`, {
@@ -920,15 +989,15 @@
       const header = [t('plan_no'), t('plan_title'), t('plan_timing'), '#', t('plan_status_on_track')]
         .map((h) => ({ text: h, options: { bold: true, color: INDIGO, fill: { color: GOLD }, fontFace: PPTX_FONT, fontSize: 10 } }));
       const bodyRows = chunk.map((p) => [
-        { text: String(p.no || ''), options: { fontFace: PPTX_FONT, fontSize: 9, color: '2A2444' } },
-        { text: p.title, options: { fontFace: PPTX_FONT, fontSize: 9, color: '2A2444' } },
-        { text: p.timing, options: { fontFace: PPTX_FONT, fontSize: 9, color: '2A2444' } },
-        { text: String(p.doneInPeriod), options: { fontFace: PPTX_FONT, fontSize: 9, color: '2A2444', align: 'center' } },
-        { text: p.status, options: { fontFace: PPTX_FONT, fontSize: 9, color: '2A2444' } },
+        { text: String(p.no || ''), options: { fontFace: PPTX_FONT, fontSize: 9, color: '18181B' } },
+        { text: p.title, options: { fontFace: PPTX_FONT, fontSize: 9, color: '18181B' } },
+        { text: p.timing, options: { fontFace: PPTX_FONT, fontSize: 9, color: '18181B' } },
+        { text: String(p.doneInPeriod), options: { fontFace: PPTX_FONT, fontSize: 9, color: '18181B', align: 'center' } },
+        { text: p.status, options: { fontFace: PPTX_FONT, fontSize: 9, color: '18181B' } },
       ]);
       slide.addTable([header, ...bodyRows], {
         x: 0.4, y: 0.9, w: 9.2, colW: [0.5, 3.6, 2.2, 0.6, 2.3],
-        fill: { color: PARCH }, border: { type: 'solid', color: 'B8AED9', pt: 0.5 },
+        fill: { color: PARCH }, border: { type: 'solid', color: '3A3A40', pt: 0.5 },
         autoPage: false, valign: 'middle',
       });
     }

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>ዜማና ስነ ጥበባት ክፍል</title>
-<meta name="theme-color" content="#2A2444">
+<meta name="theme-color" content="#0B0B0D">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -13,17 +13,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Ethiopic:wght@600;700&family=Noto+Sans+Ethiopic:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --ink: #2A2444;
-    --ink-2: #352D57;
-    --panel: #332B54;
-    --parchment: #F4F1E8;
-    --parchment-dim: #B8AED9;
-    --gold: #C9A24B;
-    --gold-dim: #8A7434;
-    --sage: #7C9473;
-    --warn: #D3A24A;
-    --danger: #B5563C;
-    --border: #4A3F73;
+    --ink: #0B0B0D;
+    --ink-2: #19191D;
+    --panel: #1C1C21;
+    --parchment: #F2EEE4;
+    --parchment-dim: #A49CB0;
+    --gold: #D4AF6A;
+    --gold-dim: #8C7340;
+    --violet: #9A8CE0;
+    --sage: #6FBF9B;
+    --warn: #E0A458;
+    --danger: #E0695A;
+    --border: #2B2B31;
     --radius: 10px;
   }
   * { box-sizing: border-box; }
@@ -147,6 +148,13 @@
   .user-badge.good { background: rgba(124,148,115,0.18); color: var(--sage); }
   .user-badge.warn { background: rgba(211,162,74,0.18); color: var(--warn); }
   .user-badge.danger { background: rgba(181,86,60,0.18); color: var(--danger); }
+
+  .history-date { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; background: var(--ink-2); }
+  .history-date summary { cursor: pointer; font-size: 13px; }
+  .history-sub-label { font-size: 11.5px; font-weight: 600; }
+  .history-name-list { font-size: 12.5px; color: var(--parchment-dim); margin-top: 2px; }
+  .good-text { color: var(--sage); }
+  .danger-text { color: var(--danger); }
 
   #tabbar {
     position: fixed; bottom: 0; left: 0; right: 0;

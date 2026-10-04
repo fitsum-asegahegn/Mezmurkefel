@@ -74,6 +74,25 @@ records; skip it and it runs entirely offline/local.
     inventory needing attention) and two doughnut charts (plan status,
     attendance), then a per-plan-item completion table.
 
+## Two attendance types, and a black theme
+- **አቴንዳስ now has a type switch**: ጥናት ክትትል (hymn study, item 13) and
+  ክፍል ስብሰባ (department meeting, item 18) are now tracked separately —
+  same checklist UI, same follow-up mechanism, but kept apart so a
+  meeting absence doesn't get mixed into hymn-study stats or vice
+  versa. Dashboard, the admin reports, and local reminders all still
+  reflect ጥናት ክትትል specifically, matching how they worked before this
+  change.
+- **New 📋 History section** on the Attendance tab, under the current
+  type: every past date, expandable to show exactly who was present and
+  who was absent that day — "on which day who was absent and present,"
+  as requested. Works for both types.
+- **Theme switched to true black** (`#0B0B0D`) with gold/violet/emerald/
+  coral accents for text and status colors, replacing the earlier deep
+  indigo. The PowerPoint report's color scheme was updated to match.
+  Run `supabase-schema.sql` again if you want the type column synced to
+  Supabase — safe to re-run, existing attendance rows default to
+  `'study'` so nothing already recorded changes meaning.
+
 ## A few spelling variants this plan exposed
 Real documents use more than one spelling for the same Ethiopian month,
 and this plan's "timing" column has its own hyphen-range style. The

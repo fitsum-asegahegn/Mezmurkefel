@@ -15,9 +15,12 @@ create table if not exists members (
 
 create table if not exists attendance (
   id text primary key,
-  "memberId" text, date text, present boolean,
+  "memberId" text, date text, present boolean, type text default 'study',
   "updatedAt" text, synced boolean default true, owner uuid references auth.users
 );
+-- safe on an already-existing table: adds the column, defaults existing
+-- rows (all hymn-study attendance until now) to 'study'
+alter table attendance add column if not exists type text default 'study';
 
 create table if not exists inventory (
   id text primary key,

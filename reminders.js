@@ -26,7 +26,7 @@
 
   async function computeFlaggedCount() {
     const members = (await window.NKDB.getAll('members')).filter((m) => m.status !== 'inactive');
-    const attendance = await window.NKDB.getAll('attendance');
+    const attendance = (await window.NKDB.getAll('attendance')).filter((r) => (r.type || 'study') === 'study');
     const dates = Array.from(new Set(attendance.map((r) => r.date))).sort().reverse().slice(0, 8);
     const byKey = {};
     attendance.forEach((r) => { byKey[r.memberId + '|' + r.date] = r; });
